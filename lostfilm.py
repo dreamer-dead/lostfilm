@@ -12,6 +12,10 @@ usess = None
 interest = []
 target_path = None
 
+VERBOSE = False
+# VERBOSE = True
+RESPONSE_ENCODING = '1251'
+USER_AGENT = 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.11 (KHTML, like Gecko) Chrome/23.0.1271.64 Safari/537.11'
 settings_file = '/home/dreamer/lostfilm.conf'
 rss_url = 'http://www.lostfilm.tv/rssdd.xml'
 cookies = None
@@ -48,7 +52,8 @@ def load_settings():
     global interest
     global cookies
     global target_path
-    print 'Using options from configfile "%s":' % settings_file
+    if VERBOSE:
+	print 'Using options from configfile "%s":' % settings_file
     with open(settings_file) as f:
         for line in f:
             line = line.strip()
@@ -61,44 +66,47 @@ def load_settings():
             if name == 'uid':
                 if len(option) > 1:
                     uid = option[1]
-                    print '... Uid: %s' % uid
+                    if VERBOSE:
+                	print '... Uid: %s' % uid
             elif name == 'pass':
                 if len(option) > 1:
                     passw = option[1]
-                    print '... Pass: %s' % passw
+                    if VERBOSE:
+                	print '... Pass: %s' % passw
             elif name == 'target_path':
                 if len(option) > 1:
                     target_path = option[1]
-                    print '... Target path: %s' % target_path
+            	    if VERBOSE:
+            		print '... Target path: %s' % target_path
             elif name == 'torrent':
                 if len(option) > 1:
             	    keyword = (option[1], )
             	    parsed_options = parse_torrent_options(option[2:])
                     interest.append(keyword + parsed_options)
-                    print '... Torrent: keyword: "%s"; is HD: %s; is web: %s, is FullHD: %s.' % (keyword + parsed_options)
+                    if VERBOSE:
+                	print '... Torrent: keyword: "%s"; is HD: %s; is web: %s, is FullHD: %s.' % (keyword + parsed_options)
             else:
-                print '[WARNING] Unknown config option "%s"' % name
+        	if VERBOSE:
+            	    print '[WARNING] Unknown config option "%s"' % name
     cookies = 'uid=%s; pass=%s' % (uid, passw)
-    print cookies
+    if VERBOSE:
+	print cookies
 
 def load_links():
     result = []
-    print 'Reading rss ...', rss_url
+    if VERBOSE:
+	print 'Reading rss ...', rss_url
     response = urllib2.urlopen(
         urllib2.Request(rss_url,
                         None,
-                        # {'Cookie': cookies}
                         {
-                	    'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.11 (KHTML, like Gecko) Chrome/23.0.1271.64 Safari/537.11',
-                            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-                            'Accept-Charset': 'ISO-8859-1,utf-8;q=0.7,*;q=0.3',
-                            'Accept-Encoding': 'none',
-                            'Accept-Language': 'en-US,en;q=0.8',
+                	    'User-Agent': USER_AGENT,
+                	    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
                             'Connection': 'keep-alive',
                             'Cookie': cookies }
                         )
         )
-    response = response.read().decode('1251')
+    response = response.read().decode(RESPONSE_ENCODING)
     # print response
     parser = HTMLParser.HTMLParser()
     return [{
@@ -110,24 +118,27 @@ def load_links():
         ]
 
 def download_torrent(url):
-    print cookies
-    print url
+    if VERBOSE:
+	print url
     file_name = filename_re.search(url).group(1)
     path = os.path.join(target_path, file_name)
-    print path
+    if VERBOSE:
+	print path
     if not (os.path.exists(path) or os.path.exists(path + '.added')):
         print u'Downloading: "%s" ...' % file_name
         response = urllib2.urlopen(
             urllib2.Request(url,
                             None,
                             {
-                            'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.11 (KHTML, like Gecko) Chrome/23.0.1271.64 Safari/537.11',
+                            'User-Agent': USER_AGENT,
                             'Cookie': cookies}
                             )
         )
-        print url
+        if VERBOSE:
+    	    print url
         torrent_content = response.read()
-        print 'Length of torrent "%s" = %d ' % (file_name, len(torrent_content))
+        if VERBOSE:
+    	    print 'Length of torrent "%s" = %d ' % (file_name, len(torrent_content))
         with open(path, 'wb') as torrent_file:
     	    torrent_file.write(torrent_content)
 
@@ -142,15 +153,16 @@ def filter_interest_torrent_urls(links):
         	yield link['url']
 
 def download_torrents():
-    print 'LostFilm.tv torrent downloader'
-    #try:
-    load_settings()
-    links = load_links()
-    print links
-    for url in filter_interest_torrent_urls(links):
-	download_torrent(url)
-    #except Exception as e:
-    #    print u'[ERROR] ', unicode(e)
+    if VERBOSE:
+	print 'LostFilm.tv torrent downloader'
+    try:
+	load_settings()
+	links = load_links()
+	# print links
+	for url in filter_interest_torrent_urls(links):
+	    download_torrent(url)
+    except Exception as e:
+        print u'[ERROR] ', unicode(e)
 
 if __name__ == '__main__':
     download_torrents()
